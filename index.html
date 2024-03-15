@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Commerce Sentiment Analysis</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f8f9fa; color: #2d3748; }
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white; padding: 24px 40px;
+            display: flex; align-items: center; gap: 16px;
+        }
+        .header h1 { font-size: 22px; }
+        .header p { font-size: 13px; opacity: 0.75; margin-top: 4px; }
+        .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .card {
+            background: white; border-radius: 12px;
+            padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+        }
+        .card h2 { font-size: 15px; color: #2c3e50; margin-bottom: 16px;
+                   padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; }
+        textarea {
+            width: 100%; height: 110px; padding: 12px;
+            border: 1px solid #e2e8f0; border-radius: 8px;
+            font-size: 14px; resize: vertical; outline: none;
+            transition: border-color 0.2s;
+        }
+        textarea:focus { border-color: #3498db; }
+        select {
+            width: 100%; padding: 10px 12px; margin: 10px 0;
+            border: 1px solid #e2e8f0; border-radius: 8px;
+            font-size: 14px; outline: none; background: white;
+        }
+        button {
+            width: 100%; padding: 12px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white; border: none; border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: all 0.2s; margin-top: 8px;
+        }
+        button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(52,152,219,0.3); }
+        button:disabled { background: #a0aec0; transform: none; cursor: not-allowed; }
+        .result { margin-top: 16px; padding: 16px; border-radius: 10px; display: none; }
+        .result.positive { background: #f0fff4; border: 1px solid #9ae6b4; }
+        .result.negative { background: #fff5f5; border: 1px solid #feb2b2; }
+        .result.neutral { background: #fffbeb; border: 1px solid #fbd38d; }
+        .sentiment-label { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+        .positive .sentiment-label { color: #276749; }
+        .negative .sentiment-label { color: #c53030; }
+        .neutral .sentiment-label { color: #b7791f; }
+        .score-bars { display: grid; gap: 8px; }
+        .score-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+        .score-row label { width: 70px; color: #718096; }
+        .bar-bg { flex: 1; background: #eee; border-radius: 4px; height: 8px; }
+        .bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+        .drop-zone {
+            border: 2px dashed #cbd5e0; border-radius: 10px;
+            padding: 30px; text-align: center; cursor: pointer;
+            transition: all 0.2s; margin-bottom: 10px;
+        }
+        .drop-zone:hover { border-color: #3498db; background: #ebf8ff; }
+        .drop-zone p { color: #718096; font-size: 14px; }
+        .drop-zone .icon { font-size: 32px; margin-bottom: 8px; }
+        .bulk-result { margin-top: 16px; }
+        .summary-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+        .chip { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+        .chip.positive { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+        .chip.negative { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
+        .chip.neutral { background: #fffbeb; color: #b7791f; border: 1px solid #fbd38d; }
+        .results-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .results-table th { background: #f7fafc; padding: 10px; text-align: left; border-bottom: 2px solid #e2e8f0; }
+        .results-table td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
+        .badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+        .badge.Positive { background: #f0fff4; color: #276749; }
+        .badge.Negative { background: #fff5f5; color: #c53030; }
+        .badge.Neutral { background: #fffbeb; color: #b7791f; }
+        .charts-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .chart-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+        .full-width { grid-column: 1 / -1; }
+        .stats-bar { display: flex; gap: 16px; margin-bottom: 20px; }
+        .stat { background: white; border-radius: 10px; padding: 16px 24px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; flex: 1; }
+        .stat .num { font-size: 28px; font-weight: 700; color: #3498db; }
+        .stat .lbl { font-size: 12px; color: #718096; margin-top: 4px; text-transform: uppercase; }
+        .loading { text-align: center; color: #718096; padding: 20px; }
+        .error-msg { background: #fff5f5; color: #c53030; padding: 12px; border-radius: 8px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <div>📊</div>
+    <div>
+        <h1>E-Commerce Sentiment Analysis</h1>
+        <p>NLP-powered review analysis using VADER · Amazon & Yelp Reviews · Python, Flask, SQLite, Plotly</p>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Stats Bar -->
+    <div class="stats-bar" id="statsBar">
+        <div class="stat"><div class="num" id="totalCount">0</div><div class="lbl">Total Analyzed</div></div>
+        <div class="stat"><div class="num" style="color:#276749" id="posCount">0</div><div class="lbl">Positive</div></div>
+        <div class="stat"><div class="num" style="color:#c53030" id="negCount">0</div><div class="lbl">Negative</div></div>
+        <div class="stat"><div class="num" style="color:#b7791f" id="neuCount">0</div><div class="lbl">Neutral</div></div>
+    </div>
+
+    <div class="grid">
+        <!-- Single Review -->
+        <div class="card">
+            <h2>🔍 Analyze Single Review</h2>
+            <textarea id="reviewText" placeholder="Paste an Amazon or Yelp review here..."></textarea>
+            <select id="source">
+                <option value="Amazon">Amazon</option>
+                <option value="Yelp">Yelp</option>
+                <option value="Manual">Manual</option>
+            </select>
+            <button onclick="analyzeSingle()" id="analyzeBtn">Analyze Sentiment</button>
+            <div class="result" id="singleResult">
+                <div class="sentiment-label" id="sentimentLabel"></div>
+                <div class="score-bars">
+                    <div class="score-row">
+                        <label>Positive</label>
+                        <div class="bar-bg"><div class="bar-fill" id="posBar" style="background:#2ecc71"></div></div>
+                        <span id="posScore"></span>
+                    </div>
+                    <div class="score-row">
+                        <label>Negative</label>
+                        <div class="bar-bg"><div class="bar-fill" id="negBar" style="background:#e74c3c"></div></div>
+                        <span id="negScore"></span>
+                    </div>
+                    <div class="score-row">
+                        <label>Neutral</label>
+                        <div class="bar-bg"><div class="bar-fill" id="neuBar" style="background:#f39c12"></div></div>
+                        <span id="neuScore"></span>
+                    </div>
+                    <div class="score-row">
+                        <label>Compound</label>
+                        <div class="bar-bg"><div class="bar-fill" id="compBar" style="background:#3498db"></div></div>
+                        <span id="compScore"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bulk Upload -->
+        <div class="card">
+            <h2>📁 Bulk CSV Analysis</h2>
+            <div class="drop-zone" onclick="document.getElementById('csvFile').click()">
+                <div class="icon">📂</div>
+                <p>Click to upload CSV file</p>
+                <p style="font-size:12px;margin-top:4px">CSV must have a 'review' or 'text' column</p>
+            </div>
+            <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="handleFile(this)">
+            <select id="bulkSource">
+                <option value="Amazon">Amazon</option>
+                <option value="Yelp">Yelp</option>
+                <option value="CSV Upload">Other</option>
+            </select>
+            <button onclick="analyzeBulk()" id="bulkBtn">Analyze CSV</button>
+            <div class="bulk-result" id="bulkResult" style="display:none">
+                <div class="summary-chips" id="summaryChips"></div>
+                <div style="max-height:250px;overflow-y:auto">
+                    <table class="results-table">
+                        <thead><tr><th>Review</th><th>Sentiment</th><th>Score</th></tr></thead>
+                        <tbody id="resultsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div style="text-align:right;margin-bottom:10px"><button onclick="loadCharts()" style="width:auto;padding:10px 20px;background:#27ae60">🔄 Refresh Charts</button></div>
+    <div class="charts-grid">
+        <div class="chart-card"><div id="distChart"></div></div>
+        <div class="chart-card"><div id="scoresChart"></div></div>
+        <div class="chart-card full-width"><div id="trendChart"></div></div>
+    </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:5001';
+let selectedFile = null;
+
+async function loadStats() {
+    try {
+        const r = await fetch(`${API}/stats`);
+        const d = await r.json();
+        document.getElementById('totalCount').textContent = d.total_reviews;
+        const byS = {};
+        d.by_sentiment.forEach(s => byS[s.sentiment] = s.count);
+        document.getElementById('posCount').textContent = byS['Positive'] || 0;
+        document.getElementById('negCount').textContent = byS['Negative'] || 0;
+        document.getElementById('neuCount').textContent = byS['Neutral'] || 0;
+    } catch(e) {}
+}
+
+async function loadCharts() {
+    try {
+        // Distribution Chart
+        const distR = await fetch(`${API}/charts/distribution`);
+        if (distR.ok) {
+            const d = await distR.json();
+            const colors = {'Positive':'#2ecc71','Negative':'#e74c3c','Neutral':'#f39c12'};
+            const pieColors = d.labels.map(l => colors[l]);
+            document.getElementById('distChart').innerHTML = '';
+            Plotly.newPlot('distChart', [{
+                type: 'pie', labels: d.labels, values: d.values,
+                marker: {colors: pieColors}
+            }], {title: 'Sentiment Distribution', paper_bgcolor:'rgba(0,0,0,0)'}, {responsive:true});
+        }
+        // Scores Chart
+        const scoresR = await fetch(`${API}/charts/scores`);
+        if (scoresR.ok) {
+            const d = await scoresR.json();
+            document.getElementById('scoresChart').innerHTML = '';
+            Plotly.newPlot('scoresChart', [
+                {name:'Positive Score', type:'bar', x:d.sentiments, y:d.positive, marker:{color:'#2ecc71'}},
+                {name:'Negative Score', type:'bar', x:d.sentiments, y:d.negative, marker:{color:'#e74c3c'}},
+                {name:'Neutral Score', type:'bar', x:d.sentiments, y:d.neutral, marker:{color:'#f39c12'}}
+            ], {title:'Average Scores by Category', barmode:'group', paper_bgcolor:'rgba(0,0,0,0)'}, {responsive:true});
+        }
+        // Trend Chart
+        const trendR = await fetch(`${API}/charts/trend`);
+        if (trendR.ok) {
+            const d = await trendR.json();
+            const colors = {Positive:'#2ecc71', Negative:'#e74c3c', Neutral:'#f39c12'};
+            const traces = Object.entries(d).map(([sentiment, data]) => ({
+                name: sentiment, type: 'scatter', mode: 'lines+markers',
+                x: data.dates, y: data.counts,
+                line: {color: colors[sentiment]}
+            }));
+            document.getElementById('trendChart').innerHTML = '';
+            Plotly.newPlot('trendChart', traces,
+                {title:'Sentiment Trend Over Time', paper_bgcolor:'rgba(0,0,0,0)',
+                 xaxis:{title:'Date'}, yaxis:{title:'Count'}}, {responsive:true});
+        }
+    } catch(e) { console.error('Chart error:', e); }
+}
+
+async function analyzeSingle() {
+    const review = document.getElementById('reviewText').value.trim();
+    const source = document.getElementById('source').value;
+    const btn = document.getElementById('analyzeBtn');
+    if (!review) return alert('Please enter a review');
+    btn.disabled = true; btn.textContent = 'Analyzing...';
+    try {
+        const r = await fetch(`${API}/analyze`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({review, source})
+        });
+        const d = await r.json();
+        const resultDiv = document.getElementById('singleResult');
+        resultDiv.className = `result ${d.sentiment.toLowerCase()}`;
+        resultDiv.style.display = 'block';
+        const icons = {Positive: '😊', Negative: '😞', Neutral: '😐'};
+        document.getElementById('sentimentLabel').textContent = `${icons[d.sentiment]} ${d.sentiment}`;
+        document.getElementById('posBar').style.width = `${d.scores.positive * 100}%`;
+        document.getElementById('negBar').style.width = `${d.scores.negative * 100}%`;
+        document.getElementById('neuBar').style.width = `${d.scores.neutral * 100}%`;
+        document.getElementById('compBar').style.width = `${Math.abs(d.scores.compound) * 100}%`;
+        document.getElementById('posScore').textContent = d.scores.positive;
+        document.getElementById('negScore').textContent = d.scores.negative;
+        document.getElementById('neuScore').textContent = d.scores.neutral;
+        document.getElementById('compScore').textContent = d.scores.compound;
+        loadStats(); loadCharts();
+    } catch(e) { alert('Could not connect to server'); }
+    finally { btn.disabled = false; btn.textContent = 'Analyze Sentiment'; }
+}
+
+function handleFile(input) {
+    selectedFile = input.files[0];
+    document.querySelector('.drop-zone p').textContent = selectedFile ? selectedFile.name : 'Click to upload CSV';
+}
+
+async function analyzeBulk() {
+    if (!selectedFile) return alert('Please select a CSV file first');
+    const btn = document.getElementById('bulkBtn');
+    btn.disabled = true; btn.textContent = 'Analyzing...';
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('source', document.getElementById('bulkSource').value);
+    try {
+        const r = await fetch(`${API}/analyze/bulk`, {method: 'POST', body: formData});
+        const d = await r.json();
+        document.getElementById('bulkResult').style.display = 'block';
+        const chips = document.getElementById('summaryChips');
+        chips.innerHTML = `<div class="chip">Total: ${d.total_analyzed}</div>`;
+        Object.entries(d.summary).forEach(([s, c]) => {
+            chips.innerHTML += `<div class="chip ${s.toLowerCase()}">${s}: ${c}</div>`;
+        });
+        const tbody = document.getElementById('resultsBody');
+        tbody.innerHTML = d.results.map(r => `
+            <tr>
+                <td>${r.review}</td>
+                <td><span class="badge ${r.sentiment}">${r.sentiment}</span></td>
+                <td>${r.compound}</td>
+            </tr>`).join('');
+        loadStats(); loadCharts();
+    } catch(e) { alert('Could not connect to server'); }
+    finally { btn.disabled = false; btn.textContent = 'Analyze CSV'; }
+}
+
+document.getElementById('reviewText').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.ctrlKey) analyzeSingle();
+});
+
+loadStats();
+loadCharts();
+</script>
+</body>
+</html>
